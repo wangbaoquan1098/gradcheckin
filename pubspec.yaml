@@ -1,0 +1,38 @@
+name: gradcheckin
+description: "考研倒计时与自习室打卡应用"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  
+  # 状态管理
+  provider: ^6.1.2
+  
+  # 本地存储
+  shared_preferences: ^2.2.3
+  
+  # 数据库
+  sqflite: ^2.3.3
+  
+  # 日历组件
+  table_calendar: ^3.1.2
+  
+  # 时间格式化
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
