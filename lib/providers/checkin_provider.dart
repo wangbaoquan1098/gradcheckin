@@ -57,9 +57,9 @@ class CheckinProvider extends ChangeNotifier {
     if (date.isAfter(DateTime.now())) {
       return;
     }
-    
+
     // 检查日期是否在允许范围内
-    if (date.isBefore(AppDates.checkinStartDate) || 
+    if (date.isBefore(AppDates.checkinStartDate) ||
         date.isAfter(AppDates.checkinEndDate)) {
       return;
     }
@@ -148,11 +148,28 @@ class CheckinProvider extends ChangeNotifier {
   double get totalCheckinRate {
     final now = DateTime.now();
     final startDate = AppDates.checkinStartDate;
-    
-    final totalDays = now.difference(startDate).inDays + 1;
+    final endDate = AppDates.checkinEndDate;
+
+    // 如果今天还在开始日期之前，返回0
+    if (now.isBefore(startDate)) return 0;
+
+    // 计算应该打卡的总天数（从开始到今天，但不超过结束日期）
+    final effectiveEndDate = now.isAfter(endDate) ? endDate : now;
+    final totalDays = effectiveEndDate.difference(startDate).inDays + 1;
     if (totalDays <= 0) return 0;
-    
-    return _checkedDates.length / totalDays;
+
+    // 只计算在有效范围内的打卡记录
+    int validCheckins = 0;
+    final startKey = '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
+    final endKey = '${effectiveEndDate.year}-${effectiveEndDate.month.toString().padLeft(2, '0')}-${effectiveEndDate.day.toString().padLeft(2, '0')}';
+
+    for (final dateKey in _checkedDates) {
+      if (dateKey.compareTo(startKey) >= 0 && dateKey.compareTo(endKey) <= 0) {
+        validCheckins++;
+      }
+    }
+
+    return validCheckins / totalDays;
   }
 
   /// 获取打卡历史（按操作时间倒序）

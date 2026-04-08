@@ -116,17 +116,17 @@ class CheckinRepository {
     final db = await _dbHelper.database;
     final startKey = '$year-${month.toString().padLeft(2, '0')}-01';
     final endKey = '$year-${month.toString().padLeft(2, '0')}-31';
-    
+
     final results = await db.query(
       'checkin_records',
       where: 'date_key >= ? AND date_key <= ?',
       whereArgs: [startKey, endKey],
       orderBy: 'date_key, operation_time DESC',
     );
-    
+
     final seenDates = <String>{};
     final monthCheckins = <String, bool>{};
-    
+
     for (final row in results) {
       final dateKey = row['date_key'] as String;
       if (!seenDates.contains(dateKey)) {
@@ -134,7 +134,33 @@ class CheckinRepository {
         monthCheckins[dateKey] = row['is_checked_in'] == 1;
       }
     }
-    
+
     return monthCheckins;
+  }
+
+  /// 删除指定日期范围外的打卡记录
+  Future<int> deleteRecordsOutsideRange(DateTime startDate, DateTime endDate) async {
+    final db = await _dbHelper.database;
+
+    final startKey = '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
+    final endKey = '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
+
+    // 删除开始日期之前和结束日期之后的记录
+    final deletedCount = await db.delete(
+      'checkin_records',
+      where: 'date_key < ? OR date_key > ?',
+      whereArgs: [startKey, endKey],
+    );
+
+    debugPrint('deleteRecordsOutsideRange: 删除了 $deletedCount 条范围外的记录');
+    return deletedCount;
+  }
+
+  /// 删除所有打卡记录（用于重置）
+  Future<int> deleteAllRecords() async {
+    final db = await _dbHelper.database;
+    final deletedCount = await db.delete('checkin_records');
+    debugPrint('deleteAllRecords: 删除了 $deletedCount 条记录');
+    return deletedCount;
   }
 }

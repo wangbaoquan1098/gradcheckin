@@ -24,20 +24,25 @@ class CountdownProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 总备考天数（从3月1日到12月25日）
+  /// 刷新日期（当设置改变时调用）
+  void refresh() {
+    _updateRemaining();
+  }
+
+  /// 总备考天数（从开始日期到结束日期）
   int get totalDays => AppDates.checkinEndDate.difference(AppDates.checkinStartDate).inDays;
-  
-  /// 已过去的天数（从3月1日到今天）
+
+  /// 已过去的天数（从开始日期到今天）
   int get elapsedDays {
     final now = DateTime.now();
     if (now.isBefore(AppDates.checkinStartDate)) return 0;
     if (now.isAfter(AppDates.checkinEndDate)) return totalDays;
     return now.difference(AppDates.checkinStartDate).inDays;
   }
-  
+
   /// 剩余天数
   String get days => _remaining.inDays.toString().padLeft(3, '0');
-  
+
   /// 已过去的时间百分比
   String get elapsedPercentage {
     if (totalDays <= 0) return '100.0';

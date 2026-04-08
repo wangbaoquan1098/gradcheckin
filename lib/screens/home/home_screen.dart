@@ -6,8 +6,10 @@ import '../../core/constants/app_dates.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../providers/checkin_provider.dart';
+import '../../providers/countdown_provider.dart';
 import 'widgets/countdown_banner.dart';
 import 'widgets/checkin_history_sheet.dart';
+import 'widgets/date_settings_dialog.dart';
 
 /// 主界面（日历视图）
 class HomeScreen extends StatefulWidget {
@@ -61,11 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () => _showHistory(context),
-            tooltip: AppStrings.history,
-          ),
+          _buildSettingsMenu(),
         ],
       ),
       body: Column(
@@ -215,6 +213,33 @@ class _HomeScreenState extends State<HomeScreen> {
               outsideBuilder: (context, day, focusedDay) {
                 return const SizedBox.shrink();
               },
+              weekNumberBuilder: (context, weekNumber) {
+                // 根据标准周数和当前聚焦的年份推算该周的某一天
+                // weekNumber 是从当年1月1日算起的周数
+                final year = _focusedDay.year;
+                // 计算该周的中间日期（第 weekNumber 周的周四）
+                final jan1 = DateTime(year, 1, 1);
+                final daysOffset = (weekNumber - 1) * 7 + 3; // +3 表示周四
+                final weekDate = jan1.add(Duration(days: daysOffset));
+                // 计算该周的周日（一周的最后一天）
+                final weekSunday = weekDate.add(Duration(days: DateTime.sunday - weekDate.weekday));
+                // 如果该周的周日早于打卡开始日期，则不显示周数
+                if (weekSunday.isBefore(AppDates.checkinStartDate)) {
+                  return const SizedBox.shrink();
+                }
+                // 使用从打卡开始日期算起的自定义周数
+                final customWeekNumber = AppDates.getWeekNumber(weekDate);
+                return Center(
+                  child: Text(
+                    '$customWeekNumber',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              },
             ),
             headerStyle: const HeaderStyle(
               formatButtonVisible: false, // 去掉切换日历格式功能
@@ -227,6 +252,11 @@ class _HomeScreenState extends State<HomeScreen> {
             calendarStyle: const CalendarStyle(
               outsideDaysVisible: false,
               weekendTextStyle: TextStyle(color: Colors.black87),
+              weekNumberTextStyle: TextStyle(
+                fontSize: 10,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             daysOfWeekStyle: const DaysOfWeekStyle(
               weekdayStyle: TextStyle(
@@ -238,6 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.black54,
               ),
             ),
+            weekNumbersVisible: true,
           ),
         );
       },
@@ -251,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     final isCheckedIn = provider.isCheckedIn(day);
     final isFuture = _isFutureDay(day);
-    final isInRange = !day.isBefore(AppDates.checkinStartDate) && 
+    final isInRange = !day.isBefore(AppDates.checkinStartDate) &&
                       !day.isAfter(AppDates.checkinEndDate);
 
     Color backgroundColor = Colors.transparent;
@@ -272,9 +303,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (isSelected) {
-      backgroundColor = isCheckedIn 
-          ? AppColors.checkedIn.withValues(alpha: 0.8)
-          : AppColors.primary.withValues(alpha: 0.2);
+      backgroundColor = isCheckedIn
+          ? AppDates.getWeekNumber(day) == 1
+              ? AppColors.checkedIn.withValues(alpha: 0.9)
+              : AppColors.checkedIn.withValues(alpha: 0.8)
+          : AppColors.primary.withAlpha(51);
       textColor = isCheckedIn ? Colors.white : AppColors.primary;
       borderColor = AppColors.primary;
     }
@@ -283,12 +316,13 @@ class _HomeScreenState extends State<HomeScreen> {
       borderColor = AppColors.primary;
     }
 
-    Widget content = Text(
+    // 构建日期文本
+    Widget dateContent = Text(
       '${day.day}',
       style: TextStyle(
         color: textColor,
-        fontWeight: (isToday || isSelected || isCheckedIn) 
-            ? FontWeight.bold 
+        fontWeight: (isToday || isSelected || isCheckedIn)
+            ? FontWeight.bold
             : FontWeight.normal,
         fontSize: 16,
       ),
@@ -296,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // 已打卡使用正圆形，未打卡使用圆角矩形
     if (isCheckedIn) {
-      return Container(
+      Widget cell = Container(
         margin: const EdgeInsets.all(2),
         width: 36,
         height: 36,
@@ -304,21 +338,25 @@ class _HomeScreenState extends State<HomeScreen> {
           color: backgroundColor,
           shape: BoxShape.circle,
         ),
-        child: Center(child: content),
+        child: Center(child: dateContent),
       );
+
+      return cell;
     }
 
-    return Container(
+    Widget cell = Container(
       margin: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: borderColor != null 
+        border: borderColor != null
             ? Border.all(color: borderColor, width: isToday ? 2 : 1)
             : null,
       ),
-      child: Center(child: content),
+      child: Center(child: dateContent),
     );
+
+    return cell;
   }
 
   /// 处理日期点击 - 弹窗确认后打卡
@@ -412,5 +450,94 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => const CheckinHistorySheet(),
     );
+  }
+
+  /// 构建设置菜单
+  Widget _buildSettingsMenu() {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.settings),
+      tooltip: AppStrings.settings,
+      onSelected: (value) {
+        if (value == 'history') {
+          _showHistory(context);
+        } else if (value == 'dates') {
+          _showDateSettings(context);
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'history',
+          child: Row(
+            children: [
+              Icon(Icons.history, size: 20, color: AppColors.primary),
+              const SizedBox(width: 12),
+              const Text(AppStrings.history),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'dates',
+          child: Row(
+            children: [
+              Icon(Icons.date_range, size: 20, color: AppColors.primary),
+              const SizedBox(width: 12),
+              const Text(AppStrings.modifyDates),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 显示日期设置对话框
+  Future<void> _showDateSettings(BuildContext parentContext) async {
+    // 在异步操作前获取 provider 引用
+    final checkinProvider = Provider.of<CheckinProvider>(parentContext, listen: false);
+    final countdownProvider = Provider.of<CountdownProvider>(parentContext, listen: false);
+
+    final result = await showDialog<bool>(
+      context: parentContext,
+      builder: (context) => const DateSettingsDialog(),
+    );
+
+    if (result == true && mounted) {
+      // 日期已修改，确保 focusedDay 在新的范围内
+      final newStartDate = AppDates.checkinStartDate;
+      final newEndDate = AppDates.checkinEndDate;
+
+      setState(() {
+        // 如果 focusedDay 早于新的开始日期，调整为开始日期
+        if (_focusedDay.isBefore(newStartDate)) {
+          _focusedDay = newStartDate;
+          _currentMonth = newStartDate.month;
+          _currentYear = newStartDate.year;
+        }
+        // 如果 focusedDay 晚于新的结束日期，调整为结束日期
+        else if (_focusedDay.isAfter(newEndDate)) {
+          _focusedDay = newEndDate;
+          _currentMonth = newEndDate.month;
+          _currentYear = newEndDate.year;
+        }
+      });
+
+      // 日期已修改，刷新所有相关数据
+      await checkinProvider.refresh();
+      countdownProvider.refresh();
+
+      // 重新加载当月数据
+      checkinProvider.loadMonthCheckins(_currentYear, _currentMonth);
+
+      // 使用当前 state 的 context 显示提示
+      if (mounted) {
+        final currentContext = context;
+        ScaffoldMessenger.of(currentContext).showSnackBar(
+          const SnackBar(
+            content: Text('日期设置已更新'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 }

@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'providers/countdown_provider.dart';
 import 'providers/checkin_provider.dart';
+import 'providers/settings_provider.dart';
+import 'core/constants/app_dates.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // 加载日期设置
+  await AppDates.loadFromPrefs();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CountdownProvider()),
         ChangeNotifierProvider(create: (_) => CheckinProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
       ],
       child: const GradCheckinApp(),
     ),
