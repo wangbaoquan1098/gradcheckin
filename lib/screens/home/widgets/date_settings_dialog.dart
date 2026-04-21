@@ -104,6 +104,8 @@ class _DateSettingsDialogState extends State<DateSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return AlertDialog(
       title: const Text(AppStrings.modifyDates),
       content: Consumer<SettingsProvider>(
@@ -137,20 +139,20 @@ class _DateSettingsDialogState extends State<DateSettingsDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
+                    color: colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
+                    border: Border.all(color: colorScheme.error.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
+                      Icon(Icons.warning_amber, color: colorScheme.error, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '修改后将删除范围外的打卡记录',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.orange.shade700,
+                            color: colorScheme.onErrorContainer,
                           ),
                         ),
                       ),
@@ -181,6 +183,7 @@ class _DateSettingsDialogState extends State<DateSettingsDialog> {
     required VoidCallback onTap,
   }) {
     final dateFormat = DateFormat('yyyy年MM月dd日');
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,7 +192,7 @@ class _DateSettingsDialogState extends State<DateSettingsDialog> {
           label,
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey.shade600,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 8),
@@ -199,7 +202,7 @@ class _DateSettingsDialogState extends State<DateSettingsDialog> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: colorScheme.outlineVariant),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(

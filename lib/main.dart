@@ -5,13 +5,12 @@ import 'app.dart';
 import 'providers/countdown_provider.dart';
 import 'providers/checkin_provider.dart';
 import 'providers/settings_provider.dart';
-import 'core/constants/app_dates.dart';
+import 'core/services/app_settings_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 加载日期设置
-  await AppDates.loadFromPrefs();
+  await AppSettingsService.loadFromPrefs();
 
   runApp(
     MultiProvider(

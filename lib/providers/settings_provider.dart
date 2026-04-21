@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../core/constants/app_dates.dart';
+import '../core/services/app_settings_service.dart';
 import '../data/repositories/checkin_repository.dart';
 
 /// 设置状态管理
@@ -8,10 +9,12 @@ class SettingsProvider extends ChangeNotifier {
 
   DateTime _startDate = AppDates.checkinStartDate;
   DateTime _endDate = AppDates.checkinEndDate;
+  bool _isDarkMode = AppSettingsService.isDarkMode;
   bool _isLoading = false;
 
   DateTime get startDate => _startDate;
   DateTime get endDate => _endDate;
+  bool get isDarkMode => _isDarkMode;
   bool get isLoading => _isLoading;
 
   SettingsProvider() {
@@ -20,10 +23,27 @@ class SettingsProvider extends ChangeNotifier {
 
   /// 加载保存的日期设置
   Future<void> _loadDates() async {
-    await AppDates.loadFromPrefs();
+    await AppSettingsService.loadFromPrefs();
     _startDate = AppDates.checkinStartDate;
     _endDate = AppDates.checkinEndDate;
+    _isDarkMode = AppSettingsService.isDarkMode;
     notifyListeners();
+  }
+
+  /// 重新加载已保存的日期设置
+  Future<void> reload() async {
+    await _loadDates();
+  }
+
+  /// 更新深色模式开关
+  Future<void> setDarkMode(bool enabled) async {
+    await AppSettingsService.setDarkMode(enabled);
+    _isDarkMode = enabled;
+    notifyListeners();
+  }
+
+  Future<void> toggleDarkMode() async {
+    await setDarkMode(!_isDarkMode);
   }
 
   /// 更新起止日期

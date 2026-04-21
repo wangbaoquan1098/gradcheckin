@@ -163,4 +163,82 @@ class CheckinRepository {
     debugPrint('deleteAllRecords: 删除了 $deletedCount 条记录');
     return deletedCount;
   }
+
+  /// 导出数据库中的全部记录
+  Future<Map<String, dynamic>> exportAllData() async {
+    final db = await _dbHelper.database;
+    final records = await db.query(
+      'checkin_records',
+      orderBy: 'id ASC',
+    );
+
+    return {
+      'version': 1,
+      'exported_at': DateTime.now().toIso8601String(),
+      'records': records,
+    };
+  }
+
+  /// 用导入数据覆盖数据库中的全部记录
+  Future<int> importAllData(Map<String, dynamic> jsonData) async {
+    final rawRecords = jsonData['records'];
+    if (rawRecords is! List) {
+      throw const FormatException('备份文件格式不正确，缺少 records 列表');
+    }
+
+    final normalizedRecords = <Map<String, dynamic>>[];
+
+    for (final item in rawRecords) {
+      if (item is! Map) {
+        throw const FormatException('备份文件格式不正确，存在非法记录');
+      }
+
+      final record = Map<String, dynamic>.from(item);
+      final dateKey = record['date_key'];
+      final operationTime = record['operation_time'];
+
+      if (dateKey is! String || operationTime is! String) {
+        throw const FormatException('备份文件格式不正确，记录字段缺失');
+      }
+
+      DateTime.parse(operationTime);
+
+      final normalizedCheckedIn = switch (record['is_checked_in']) {
+        bool value => value ? 1 : 0,
+        int value when value == 0 || value == 1 => value,
+        _ => throw const FormatException('备份文件格式不正确，is_checked_in 无效'),
+      };
+
+      final normalizedRecord = <String, dynamic>{
+        'date_key': dateKey,
+        'is_checked_in': normalizedCheckedIn,
+        'operation_time': operationTime,
+      };
+
+      final id = record['id'];
+      if (id is int) {
+        normalizedRecord['id'] = id;
+      }
+
+      normalizedRecords.add(normalizedRecord);
+    }
+
+    final db = await _dbHelper.database;
+    await db.transaction((txn) async {
+      await txn.delete('checkin_records');
+
+      if (normalizedRecords.isEmpty) {
+        return;
+      }
+
+      final batch = txn.batch();
+      for (final record in normalizedRecords) {
+        batch.insert('checkin_records', record);
+      }
+      await batch.commit(noResult: true);
+    });
+
+    debugPrint('importAllData: 导入了 ${normalizedRecords.length} 条记录');
+    return normalizedRecords.length;
+  }
 }

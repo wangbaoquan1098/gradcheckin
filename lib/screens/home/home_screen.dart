@@ -1,12 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_dates.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/services/backup_service.dart';
 import '../../providers/checkin_provider.dart';
 import '../../providers/countdown_provider.dart';
+import '../../providers/settings_provider.dart';
 import 'widgets/countdown_banner.dart';
 import 'widgets/checkin_history_sheet.dart';
 import 'widgets/date_settings_dialog.dart';
@@ -24,6 +29,8 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _selectedDay;
   int _currentMonth = DateTime.now().month;
   int _currentYear = DateTime.now().year;
+  bool _isImportExporting = false;
+  final BackupService _backupService = BackupService();
 
   @override
   void initState() {
@@ -54,8 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(AppStrings.appName),
         centerTitle: true,
@@ -83,14 +92,15 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, provider, _) {
         final monthRate = provider.getMonthCheckinRate(_currentYear, _currentMonth);
         final totalRate = provider.totalCheckinRate;
+        final colorScheme = Theme.of(context).colorScheme;
         
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colorScheme.surface,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: colorScheme.shadow.withValues(alpha: 0.08),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
@@ -152,14 +162,17 @@ class _HomeScreenState extends State<HomeScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
+        final colorScheme = Theme.of(context).colorScheme;
+        final textTheme = Theme.of(context).textTheme;
+
         return Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: colorScheme.shadow.withValues(alpha: 0.08),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -232,40 +245,42 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Center(
                   child: Text(
                     '$customWeekNumber',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
-                      color: Colors.grey,
+                      color: colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 );
               },
             ),
-            headerStyle: const HeaderStyle(
+            headerStyle: HeaderStyle(
               formatButtonVisible: false, // 去掉切换日历格式功能
               titleCentered: true,
               titleTextStyle: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
+                color: textTheme.titleMedium?.color,
               ),
             ),
-            calendarStyle: const CalendarStyle(
+            calendarStyle: CalendarStyle(
               outsideDaysVisible: false,
-              weekendTextStyle: TextStyle(color: Colors.black87),
+              defaultTextStyle: TextStyle(color: colorScheme.onSurface),
+              weekendTextStyle: TextStyle(color: colorScheme.onSurface),
               weekNumberTextStyle: TextStyle(
                 fontSize: 10,
-                color: Colors.grey,
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            daysOfWeekStyle: const DaysOfWeekStyle(
+            daysOfWeekStyle: DaysOfWeekStyle(
               weekdayStyle: TextStyle(
                 fontWeight: FontWeight.w500,
-                color: Colors.black54,
+                color: colorScheme.onSurfaceVariant,
               ),
               weekendStyle: TextStyle(
                 fontWeight: FontWeight.w500,
-                color: Colors.black54,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             weekNumbersVisible: true,
@@ -280,13 +295,14 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isToday = false,
     bool isDisabled = false,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isCheckedIn = provider.isCheckedIn(day);
     final isFuture = _isFutureDay(day);
     final isInRange = !day.isBefore(AppDates.checkinStartDate) &&
                       !day.isAfter(AppDates.checkinEndDate);
 
     Color backgroundColor = Colors.transparent;
-    Color textColor = Colors.black87;
+    Color textColor = colorScheme.onSurface;
     Color? borderColor;
 
     if (isDisabled || isFuture) {
@@ -454,38 +470,241 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// 构建设置菜单
   Widget _buildSettingsMenu() {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.settings),
-      tooltip: AppStrings.settings,
-      onSelected: (value) {
-        if (value == 'history') {
-          _showHistory(context);
-        } else if (value == 'dates') {
-          _showDateSettings(context);
-        }
+    return Consumer<SettingsProvider>(
+      builder: (context, settings, _) {
+        return PopupMenuButton<String>(
+          icon: const Icon(Icons.settings),
+          tooltip: AppStrings.settings,
+          onSelected: (value) {
+            if (value == 'history') {
+              _showHistory(context);
+            } else if (value == 'dates') {
+              _showDateSettings(context);
+            } else if (value == 'export') {
+              _exportData();
+            } else if (value == 'import') {
+              _importData();
+            } else if (value == 'dark_mode') {
+              settings.toggleDarkMode();
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'history',
+              child: Row(
+                children: [
+                  Icon(Icons.history, size: 20, color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  const Text(AppStrings.history),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'dates',
+              child: Row(
+                children: [
+                  Icon(Icons.date_range, size: 20, color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  const Text(AppStrings.modifyDates),
+                ],
+              ),
+            ),
+            CheckedPopupMenuItem(
+              value: 'dark_mode',
+              checked: settings.isDarkMode,
+              child: Row(
+                children: [
+                  Icon(Icons.dark_mode, size: 20, color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  const Text(AppStrings.darkMode),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'export',
+              child: Row(
+                children: [
+                  Icon(Icons.upload_file, size: 20, color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  const Text(AppStrings.exportData),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'import',
+              child: Row(
+                children: [
+                  Icon(Icons.download, size: 20, color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  const Text(AppStrings.importData),
+                ],
+              ),
+            ),
+          ],
+        );
       },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'history',
-          child: Row(
-            children: [
-              Icon(Icons.history, size: 20, color: AppColors.primary),
-              const SizedBox(width: 12),
-              const Text(AppStrings.history),
-            ],
-          ),
+    );
+  }
+
+  Future<void> _exportData() async {
+    if (_isImportExporting) {
+      return;
+    }
+
+    setState(() {
+      _isImportExporting = true;
+    });
+
+    try {
+      final filePath = await _backupService.exportToJson();
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('导出成功：$filePath'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
         ),
-        PopupMenuItem(
-          value: 'dates',
-          child: Row(
-            children: [
-              Icon(Icons.date_range, size: 20, color: AppColors.primary),
-              const SizedBox(width: 12),
-              const Text(AppStrings.modifyDates),
-            ],
+      );
+    } on FileSystemException catch (e) {
+      _showOperationMessage(e.message);
+    } on PlatformException catch (e) {
+      _showOperationMessage(e.message ?? '导出失败，请稍后重试');
+    } catch (e) {
+      _showOperationMessage('导出失败：$e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isImportExporting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _importData() async {
+    if (_isImportExporting) {
+      return;
+    }
+
+    final shouldImport = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(AppStrings.importData),
+        content: const Text(AppStrings.importWarning),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(AppStrings.cancel),
           ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(AppStrings.confirm),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldImport != true) {
+      return;
+    }
+
+    String? selectedDirectory;
+    try {
+      selectedDirectory = await _backupService.pickImportDirectory();
+    } on PlatformException catch (e) {
+      _showOperationMessage(e.message ?? '无法打开目录选择器');
+      return;
+    }
+
+    if (selectedDirectory == null || selectedDirectory.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isImportExporting = true;
+    });
+
+    try {
+      final importedCount = await _backupService.importFromDirectory(selectedDirectory);
+      if (!mounted) {
+        return;
+      }
+
+      final checkinProvider = Provider.of<CheckinProvider>(context, listen: false);
+      final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
+      final countdownProvider = Provider.of<CountdownProvider>(context, listen: false);
+
+      await settingsProvider.reload();
+      await checkinProvider.refresh();
+      countdownProvider.refresh();
+
+      final newStartDate = AppDates.checkinStartDate;
+      final newEndDate = AppDates.checkinEndDate;
+
+      if (_focusedDay.isBefore(newStartDate)) {
+        setState(() {
+          _focusedDay = newStartDate;
+          _selectedDay = newStartDate;
+          _currentMonth = newStartDate.month;
+          _currentYear = newStartDate.year;
+        });
+      } else if (_focusedDay.isAfter(newEndDate)) {
+        setState(() {
+          _focusedDay = newEndDate;
+          _selectedDay = newEndDate;
+          _currentMonth = newEndDate.month;
+          _currentYear = newEndDate.year;
+        });
+      }
+
+      await checkinProvider.loadMonthCheckins(_currentYear, _currentMonth);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '导入成功：已覆盖 $importedCount 条记录\n目录：$selectedDirectory',
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
         ),
-      ],
+      );
+    } on FileSystemException catch (e) {
+      _showOperationMessage(
+        e.message == '未找到备份文件'
+            ? '所选目录中未找到 ${BackupService.backupFileName}'
+            : e.message,
+      );
+    } on PlatformException catch (e) {
+      _showOperationMessage(e.message ?? '导入失败，请稍后重试');
+    } on FormatException catch (e) {
+      _showOperationMessage(e.message);
+    } catch (e) {
+      _showOperationMessage('导入失败：$e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isImportExporting = false;
+        });
+      }
+    }
+  }
+
+  void _showOperationMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -494,6 +713,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // 在异步操作前获取 provider 引用
     final checkinProvider = Provider.of<CheckinProvider>(parentContext, listen: false);
     final countdownProvider = Provider.of<CountdownProvider>(parentContext, listen: false);
+    final messenger = ScaffoldMessenger.of(parentContext);
 
     final result = await showDialog<bool>(
       context: parentContext,
@@ -529,8 +749,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // 使用当前 state 的 context 显示提示
       if (mounted) {
-        final currentContext = context;
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('日期设置已更新'),
             duration: Duration(seconds: 2),

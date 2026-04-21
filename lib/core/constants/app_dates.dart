@@ -59,6 +59,25 @@ class AppDates {
     _cachedEndDate = normalizedEnd;
   }
 
+  /// 导出当前日期设置
+  static Map<String, String> exportDateSettings() {
+    return {
+      'start_date': checkinStartDate.toIso8601String(),
+      'end_date': checkinEndDate.toIso8601String(),
+    };
+  }
+
+  /// 导入日期设置
+  static Future<void> importDateSettings({
+    required String startDate,
+    required String endDate,
+  }) async {
+    await saveDates(
+      DateTime.parse(startDate),
+      DateTime.parse(endDate),
+    );
+  }
+
   /// 重置为默认日期
   static Future<void> resetToDefaults() async {
     final prefs = await SharedPreferences.getInstance();
