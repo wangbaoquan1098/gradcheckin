@@ -59,6 +59,21 @@ class _HomeScreenState extends State<HomeScreen> {
     return checkDate.isAfter(today);
   }
 
+  DateTime _dateOnly(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  DateTime _getTodayInRange() {
+    final today = _dateOnly(DateTime.now());
+    if (today.isBefore(AppDates.checkinStartDate)) {
+      return AppDates.checkinStartDate;
+    }
+    if (today.isAfter(AppDates.checkinEndDate)) {
+      return AppDates.checkinEndDate;
+    }
+    return today;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -208,134 +223,190 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          child: TableCalendar(
-            firstDay: AppDates.checkinStartDate,
-            lastDay: AppDates.checkinEndDate,
-            focusedDay: _focusedDay,
-            locale: 'zh_CN',
-            startingDayOfWeek: StartingDayOfWeek.monday,
-            rowHeight: 46,
-            daysOfWeekHeight: 34,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selectedDay, focusedDay) {
-              setState(() {
-                _selectedDay = selectedDay;
-                _focusedDay = focusedDay;
-              });
-              _handleCheckinForDate(selectedDay);
-            },
-            onPageChanged: (focusedDay) {
-              // 不允许切换到未来的月份
-              final now = DateTime.now();
-              if (focusedDay.year > now.year ||
-                  (focusedDay.year == now.year &&
-                      focusedDay.month > now.month)) {
-                return;
-              }
-              setState(() {
-                _focusedDay = focusedDay;
-                _currentMonth = focusedDay.month;
-                _currentYear = focusedDay.year;
-              });
-              provider.loadMonthCheckins(focusedDay.year, focusedDay.month);
-            },
-            enabledDayPredicate: (day) {
-              // 不允许选择未来日期
-              return !_isFutureDay(day);
-            },
-            calendarBuilders: CalendarBuilders(
-              defaultBuilder: (context, day, focusedDay) {
-                return _buildDayCell(day, provider);
-              },
-              selectedBuilder: (context, day, focusedDay) {
-                return _buildDayCell(day, provider, isSelected: true);
-              },
-              todayBuilder: (context, day, focusedDay) {
-                return _buildDayCell(day, provider, isToday: true);
-              },
-              disabledBuilder: (context, day, focusedDay) {
-                return _buildDayCell(day, provider, isDisabled: true);
-              },
-              outsideBuilder: (context, day, focusedDay) {
-                return const SizedBox.shrink();
-              },
-              weekNumberBuilder: (context, weekNumber) {
-                // 根据标准周数和当前聚焦的年份推算该周的某一天
-                // weekNumber 是从当年1月1日算起的周数
-                final year = _focusedDay.year;
-                // 计算该周的中间日期（第 weekNumber 周的周四）
-                final jan1 = DateTime(year, 1, 1);
-                final daysOffset = (weekNumber - 1) * 7 + 3; // +3 表示周四
-                final weekDate = jan1.add(Duration(days: daysOffset));
-                // 计算该周的周日（一周的最后一天）
-                final weekSunday = weekDate.add(
-                  Duration(days: DateTime.sunday - weekDate.weekday),
-                );
-                // 如果该周的周日早于打卡开始日期，则不显示周数
-                if (weekSunday.isBefore(AppDates.checkinStartDate)) {
-                  return const SizedBox.shrink();
-                }
-                // 使用从打卡开始日期算起的自定义周数
-                final customWeekNumber = AppDates.getWeekNumber(weekDate);
-                return Center(
-                  child: Text(
-                    '$customWeekNumber',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
+          child: Stack(
+            children: [
+              TableCalendar(
+                firstDay: AppDates.checkinStartDate,
+                lastDay: AppDates.checkinEndDate,
+                focusedDay: _focusedDay,
+                locale: 'zh_CN',
+                startingDayOfWeek: StartingDayOfWeek.monday,
+                rowHeight: 46,
+                daysOfWeekHeight: 34,
+                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                onDaySelected: (selectedDay, focusedDay) {
+                  setState(() {
+                    _selectedDay = selectedDay;
+                    _focusedDay = focusedDay;
+                  });
+                  _handleCheckinForDate(selectedDay);
+                },
+                onPageChanged: (focusedDay) {
+                  // 不允许切换到未来的月份
+                  final now = DateTime.now();
+                  if (focusedDay.year > now.year ||
+                      (focusedDay.year == now.year &&
+                          focusedDay.month > now.month)) {
+                    return;
+                  }
+                  setState(() {
+                    _focusedDay = focusedDay;
+                    _currentMonth = focusedDay.month;
+                    _currentYear = focusedDay.year;
+                  });
+                  provider.loadMonthCheckins(focusedDay.year, focusedDay.month);
+                },
+                enabledDayPredicate: (day) {
+                  // 不允许选择未来日期
+                  return !_isFutureDay(day);
+                },
+                calendarBuilders: CalendarBuilders(
+                  defaultBuilder: (context, day, focusedDay) {
+                    return _buildDayCell(day, provider);
+                  },
+                  selectedBuilder: (context, day, focusedDay) {
+                    return _buildDayCell(day, provider, isSelected: true);
+                  },
+                  todayBuilder: (context, day, focusedDay) {
+                    return _buildDayCell(day, provider, isToday: true);
+                  },
+                  disabledBuilder: (context, day, focusedDay) {
+                    return _buildDayCell(day, provider, isDisabled: true);
+                  },
+                  outsideBuilder: (context, day, focusedDay) {
+                    return const SizedBox.shrink();
+                  },
+                  weekNumberBuilder: (context, weekNumber) {
+                    // 根据标准周数和当前聚焦的年份推算该周的某一天
+                    // weekNumber 是从当年1月1日算起的周数
+                    final year = _focusedDay.year;
+                    // 计算该周的中间日期（第 weekNumber 周的周四）
+                    final jan1 = DateTime(year, 1, 1);
+                    final daysOffset = (weekNumber - 1) * 7 + 3; // +3 表示周四
+                    final weekDate = jan1.add(Duration(days: daysOffset));
+                    // 计算该周的周日（一周的最后一天）
+                    final weekSunday = weekDate.add(
+                      Duration(days: DateTime.sunday - weekDate.weekday),
+                    );
+                    // 如果该周的周日早于打卡开始日期，则不显示周数
+                    if (weekSunday.isBefore(AppDates.checkinStartDate)) {
+                      return const SizedBox.shrink();
+                    }
+                    // 使用从打卡开始日期算起的自定义周数
+                    final customWeekNumber = AppDates.getWeekNumber(weekDate);
+                    return Center(
+                      child: Text(
+                        '$customWeekNumber',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                headerStyle: HeaderStyle(
+                  formatButtonVisible: false, // 去掉切换日历格式功能
+                  titleCentered: true,
+                  headerPadding: const EdgeInsets.symmetric(vertical: 12),
+                  leftChevronIcon: Icon(
+                    Icons.chevron_left,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 30,
                   ),
-                );
-              },
-            ),
-            headerStyle: HeaderStyle(
-              formatButtonVisible: false, // 去掉切换日历格式功能
-              titleCentered: true,
-              headerPadding: const EdgeInsets.symmetric(vertical: 12),
-              leftChevronIcon: Icon(
-                Icons.chevron_left,
-                color: colorScheme.onSurfaceVariant,
-                size: 30,
+                  rightChevronIcon: Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 30,
+                  ),
+                  titleTextStyle: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : textTheme.titleMedium?.color,
+                  ),
+                ),
+                calendarStyle: CalendarStyle(
+                  outsideDaysVisible: false,
+                  defaultTextStyle: TextStyle(color: colorScheme.onSurface),
+                  weekendTextStyle: TextStyle(color: colorScheme.onSurface),
+                  weekNumberTextStyle: TextStyle(
+                    fontSize: 10,
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                daysOfWeekStyle: DaysOfWeekStyle(
+                  weekdayStyle: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  weekendStyle: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                weekNumbersVisible: true,
               ),
-              rightChevronIcon: Icon(
-                Icons.chevron_right,
-                color: colorScheme.onSurfaceVariant,
-                size: 30,
+              Positioned(
+                right: 16,
+                bottom: 18,
+                child: _buildTodayButton(provider),
               ),
-              titleTextStyle: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : textTheme.titleMedium?.color,
-              ),
-            ),
-            calendarStyle: CalendarStyle(
-              outsideDaysVisible: false,
-              defaultTextStyle: TextStyle(color: colorScheme.onSurface),
-              weekendTextStyle: TextStyle(color: colorScheme.onSurface),
-              weekNumberTextStyle: TextStyle(
-                fontSize: 10,
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            daysOfWeekStyle: DaysOfWeekStyle(
-              weekdayStyle: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              weekendStyle: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            weekNumbersVisible: true,
+            ],
           ),
         );
       },
     );
+  }
+
+  Widget _buildTodayButton(CheckinProvider provider) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Material(
+      color: Colors.transparent,
+      elevation: isDark ? 0 : 4,
+      borderRadius: BorderRadius.circular(22),
+      child: FilledButton.icon(
+        onPressed: () => _jumpToToday(provider),
+        icon: const Icon(Icons.today, size: 18),
+        label: const Text('今天'),
+        style: FilledButton.styleFrom(
+          backgroundColor: isDark
+              ? AppColors.darkSurfaceElevated
+              : colorScheme.primary,
+          foregroundColor: isDark ? colorScheme.primary : colorScheme.onPrimary,
+          minimumSize: const Size(88, 42),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          side: isDark
+              ? BorderSide(color: colorScheme.primary, width: 1.5)
+              : BorderSide.none,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          shadowColor: colorScheme.shadow.withValues(alpha: 0.24),
+        ),
+      ),
+    );
+  }
+
+  void _jumpToToday(CheckinProvider provider) {
+    final today = _getTodayInRange();
+
+    setState(() {
+      _focusedDay = today;
+      _selectedDay = today;
+      _currentMonth = today.month;
+      _currentYear = today.year;
+    });
+
+    provider.loadMonthCheckins(today.year, today.month);
   }
 
   Widget _buildDayCell(
