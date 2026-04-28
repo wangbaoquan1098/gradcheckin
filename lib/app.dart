@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_colors.dart';
@@ -17,9 +18,7 @@ class GradCheckinApp extends StatelessWidget {
           title: '考研打卡',
           debugShowCheckedModeBanner: false,
           locale: const Locale('zh', 'CN'),
-          supportedLocales: const [
-            Locale('zh', 'CN'),
-          ],
+          supportedLocales: const [Locale('zh', 'CN')],
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
@@ -44,14 +43,30 @@ class GradCheckinApp extends StatelessWidget {
           ),
           darkTheme: ThemeData(
             useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: AppColors.primary,
-              brightness: Brightness.dark,
-            ),
+            colorScheme:
+                ColorScheme.fromSeed(
+                  seedColor: AppColors.primaryLight,
+                  brightness: Brightness.dark,
+                ).copyWith(
+                  primary: AppColors.primaryLight,
+                  onPrimary: Colors.white,
+                  surface: AppColors.darkSurface,
+                  onSurface: AppColors.textPrimaryDark,
+                  surfaceContainerHighest: AppColors.darkSurfaceElevated,
+                  onSurfaceVariant: AppColors.textSecondaryDark,
+                  outlineVariant: AppColors.darkOutline,
+                  shadow: Colors.black,
+                ),
+            scaffoldBackgroundColor: AppColors.darkBackground,
             appBarTheme: const AppBarTheme(
-              backgroundColor: AppColors.primaryDark,
+              backgroundColor: AppColors.darkAppBar,
               foregroundColor: Colors.white,
               elevation: 0,
+              systemOverlayStyle: SystemUiOverlayStyle(
+                statusBarColor: AppColors.darkAppBar,
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark,
+              ),
             ),
             floatingActionButtonTheme: const FloatingActionButtonThemeData(
               backgroundColor: AppColors.primaryLight,

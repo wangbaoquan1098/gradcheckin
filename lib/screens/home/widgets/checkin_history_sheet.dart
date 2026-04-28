@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../providers/checkin_provider.dart';
 
 /// 打卡历史底部弹窗（显示每次操作记录）
@@ -10,6 +11,10 @@ class CheckinHistorySheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetColor = isDark
+        ? AppColors.darkSurfaceElevated
+        : colorScheme.surface;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -19,7 +24,7 @@ class CheckinHistorySheet extends StatelessWidget {
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
-            color: colorScheme.surface,
+            color: sheetColor,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
@@ -30,7 +35,7 @@ class CheckinHistorySheet extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -40,11 +45,12 @@ class CheckinHistorySheet extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       '打卡记录',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     Consumer<CheckinProvider>(
@@ -55,13 +61,17 @@ class CheckinHistorySheet extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade50,
+                            color: isDark
+                                ? AppColors.checkedInDarkContainer
+                                : Colors.green.shade50,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             '已打卡 ${provider.totalCheckins} 天',
                             style: TextStyle(
-                              color: Colors.green.shade700,
+                              color: isDark
+                                  ? Colors.green.shade200
+                                  : Colors.green.shade700,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -71,29 +81,29 @@ class CheckinHistorySheet extends StatelessWidget {
                   ],
                 ),
               ),
-              const Divider(height: 1),
+              Divider(height: 1, color: colorScheme.outlineVariant),
               // 历史列表
               Expanded(
                 child: Consumer<CheckinProvider>(
                   builder: (context, provider, _) {
                     final records = provider.historyRecords;
-                    
+
                     if (records.isEmpty) {
-                      return const Center(
+                      return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.calendar_today_outlined,
                               size: 64,
-                              color: Colors.grey,
+                              color: colorScheme.onSurfaceVariant,
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             Text(
                               '暂无打卡记录',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.grey,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -105,47 +115,53 @@ class CheckinHistorySheet extends StatelessWidget {
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: records.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) =>
+                          Divider(height: 1, color: colorScheme.outlineVariant),
                       itemBuilder: (context, index) {
                         final record = records[index];
-                        
+                        final iconBackground = record.isCheckin
+                            ? isDark
+                                  ? AppColors.checkedInDarkContainer
+                                  : Colors.green.shade50
+                            : isDark
+                            ? AppColors.notCheckedInDarkContainer
+                            : Colors.orange.shade50;
+                        final iconColor = record.isCheckin
+                            ? isDark
+                                  ? Colors.green.shade200
+                                  : Colors.green
+                            : isDark
+                            ? Colors.orange.shade200
+                            : Colors.orange;
+
                         return ListTile(
                           leading: Container(
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: record.isCheckin
-                                  ? Colors.green.shade50
-                                  : Colors.orange.shade50,
+                              color: iconBackground,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              record.isCheckin
-                                  ? Icons.check
-                                  : Icons.undo,
-                              color: record.isCheckin
-                                  ? Colors.green
-                                  : Colors.orange,
+                              record.isCheckin ? Icons.check : Icons.undo,
+                              color: iconColor,
                             ),
                           ),
                           title: Text(
                             DateFormat('yyyy年MM月dd日').format(record.date),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w500,
+                              color: colorScheme.onSurface,
                             ),
                           ),
                           subtitle: Text(
                             record.isCheckin ? '打卡' : '取消打卡',
-                            style: TextStyle(
-                              color: record.isCheckin
-                                  ? Colors.green
-                                  : Colors.orange.shade400,
-                            ),
+                            style: TextStyle(color: iconColor),
                           ),
                           trailing: Text(
                             DateFormat('HH:mm').format(record.operationTime),
                             style: TextStyle(
-                              color: Colors.grey.shade500,
+                              color: colorScheme.onSurfaceVariant,
                               fontSize: 12,
                             ),
                           ),

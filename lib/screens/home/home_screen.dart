@@ -39,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _selectedDay = DateTime.now();
     _currentMonth = DateTime.now().month;
     _currentYear = DateTime.now().year;
-    
+
     // 加载当月打卡数据
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<CheckinProvider>(context, listen: false);
@@ -62,25 +62,29 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(AppStrings.appName),
         centerTitle: true,
-        backgroundColor: AppColors.primary,
+        backgroundColor: isDark ? AppColors.darkAppBar : AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          _buildSettingsMenu(),
-        ],
+        systemOverlayStyle: isDark
+            ? const SystemUiOverlayStyle(
+                statusBarColor: AppColors.darkAppBar,
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark,
+              )
+            : SystemUiOverlayStyle.light,
+        actions: [_buildSettingsMenu()],
       ),
       body: Column(
         children: [
           const CountdownBanner(),
-          Expanded(
-            child: _buildCalendar(),
-          ),
+          Expanded(child: _buildCalendar()),
           _buildStatistics(),
         ],
       ),
@@ -90,18 +94,35 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildStatistics() {
     return Consumer<CheckinProvider>(
       builder: (context, provider, _) {
-        final monthRate = provider.getMonthCheckinRate(_currentYear, _currentMonth);
+        final monthRate = provider.getMonthCheckinRate(
+          _currentYear,
+          _currentMonth,
+        );
         final totalRate = provider.totalCheckinRate;
-        final colorScheme = Theme.of(context).colorScheme;
-        
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final isDark = theme.brightness == Brightness.dark;
+        final statSurface = isDark
+            ? AppColors.darkSurfaceElevated
+            : colorScheme.surface;
+
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
           decoration: BoxDecoration(
-            color: colorScheme.surface,
+            color: statSurface,
+            border: Border(
+              top: BorderSide(
+                color: isDark
+                    ? AppColors.darkOutline
+                    : colorScheme.outlineVariant.withValues(alpha: 0.6),
+              ),
+            ),
             boxShadow: [
               BoxShadow(
-                color: colorScheme.shadow.withValues(alpha: 0.08),
-                blurRadius: 10,
+                color: colorScheme.shadow.withValues(
+                  alpha: isDark ? 0.2 : 0.08,
+                ),
+                blurRadius: isDark ? 18 : 10,
                 offset: const Offset(0, -2),
               ),
             ],
@@ -112,17 +133,19 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildStatItem(
                 '${DateFormat('MM月').format(DateTime(_currentYear, _currentMonth))}打卡率',
                 '${(monthRate * 100).toStringAsFixed(1)}%',
-                Colors.blue,
+                isDark ? const Color(0xFF63B3FF) : Colors.blue,
               ),
               Container(
                 width: 1,
-                height: 40,
-                color: Colors.grey.shade200,
+                height: 42,
+                color: colorScheme.outlineVariant.withValues(
+                  alpha: isDark ? 0.9 : 1,
+                ),
               ),
               _buildStatItem(
                 '总打卡率',
                 '${(totalRate * 100).toStringAsFixed(1)}%',
-                Colors.green,
+                isDark ? const Color(0xFF63D987) : Colors.green,
               ),
             ],
           ),
@@ -132,15 +155,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildStatItem(String label, String value, Color color) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 4),
         Text(
@@ -164,17 +186,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final colorScheme = Theme.of(context).colorScheme;
         final textTheme = Theme.of(context).textTheme;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final calendarSurface = isDark
+            ? AppColors.darkSurface
+            : colorScheme.surface;
 
         return Container(
-          margin: const EdgeInsets.all(8),
+          margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
           decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
+            color: calendarSurface,
+            borderRadius: BorderRadius.circular(18),
+            border: isDark ? Border.all(color: AppColors.darkOutline) : null,
             boxShadow: [
               BoxShadow(
-                color: colorScheme.shadow.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
+                color: colorScheme.shadow.withValues(
+                  alpha: isDark ? 0.28 : 0.08,
+                ),
+                blurRadius: isDark ? 24 : 10,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -184,6 +214,8 @@ class _HomeScreenState extends State<HomeScreen> {
             focusedDay: _focusedDay,
             locale: 'zh_CN',
             startingDayOfWeek: StartingDayOfWeek.monday,
+            rowHeight: 46,
+            daysOfWeekHeight: 34,
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
@@ -195,8 +227,9 @@ class _HomeScreenState extends State<HomeScreen> {
             onPageChanged: (focusedDay) {
               // 不允许切换到未来的月份
               final now = DateTime.now();
-              if (focusedDay.year > now.year || 
-                  (focusedDay.year == now.year && focusedDay.month > now.month)) {
+              if (focusedDay.year > now.year ||
+                  (focusedDay.year == now.year &&
+                      focusedDay.month > now.month)) {
                 return;
               }
               setState(() {
@@ -235,7 +268,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 final daysOffset = (weekNumber - 1) * 7 + 3; // +3 表示周四
                 final weekDate = jan1.add(Duration(days: daysOffset));
                 // 计算该周的周日（一周的最后一天）
-                final weekSunday = weekDate.add(Duration(days: DateTime.sunday - weekDate.weekday));
+                final weekSunday = weekDate.add(
+                  Duration(days: DateTime.sunday - weekDate.weekday),
+                );
                 // 如果该周的周日早于打卡开始日期，则不显示周数
                 if (weekSunday.isBefore(AppDates.checkinStartDate)) {
                   return const SizedBox.shrink();
@@ -257,10 +292,23 @@ class _HomeScreenState extends State<HomeScreen> {
             headerStyle: HeaderStyle(
               formatButtonVisible: false, // 去掉切换日历格式功能
               titleCentered: true,
+              headerPadding: const EdgeInsets.symmetric(vertical: 12),
+              leftChevronIcon: Icon(
+                Icons.chevron_left,
+                color: colorScheme.onSurfaceVariant,
+                size: 30,
+              ),
+              rightChevronIcon: Icon(
+                Icons.chevron_right,
+                color: colorScheme.onSurfaceVariant,
+                size: 30,
+              ),
               titleTextStyle: TextStyle(
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: textTheme.titleMedium?.color,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : textTheme.titleMedium?.color,
               ),
             ),
             calendarStyle: CalendarStyle(
@@ -275,11 +323,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             daysOfWeekStyle: DaysOfWeekStyle(
               weekdayStyle: TextStyle(
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
                 color: colorScheme.onSurfaceVariant,
               ),
               weekendStyle: TextStyle(
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
@@ -290,46 +338,74 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildDayCell(DateTime day, CheckinProvider provider, {
+  Widget _buildDayCell(
+    DateTime day,
+    CheckinProvider provider, {
     bool isSelected = false,
     bool isToday = false,
     bool isDisabled = false,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final isCheckedIn = provider.isCheckedIn(day);
     final isFuture = _isFutureDay(day);
-    final isInRange = !day.isBefore(AppDates.checkinStartDate) &&
-                      !day.isAfter(AppDates.checkinEndDate);
+    final isInRange =
+        !day.isBefore(AppDates.checkinStartDate) &&
+        !day.isAfter(AppDates.checkinEndDate);
+
+    final checkedColor = isDark ? AppColors.checkedInDark : AppColors.checkedIn;
+    final missedBackground = isDark
+        ? AppColors.notCheckedInDarkContainer
+        : AppColors.notCheckedInBackground;
+    final missedSelectedBackground = isDark
+        ? AppColors.notCheckedInDarkSelectedContainer
+        : AppColors.notCheckedInBackground;
+    final missedText = isDark
+        ? AppColors.notCheckedInDark
+        : AppColors.notCheckedIn;
 
     Color backgroundColor = Colors.transparent;
     Color textColor = colorScheme.onSurface;
     Color? borderColor;
+    double borderWidth = 1;
 
     if (isDisabled || isFuture) {
       // 禁用/未来日期：灰色
-      textColor = Colors.grey.shade400;
+      textColor = isDark
+          ? AppColors.textSecondaryDark.withValues(alpha: 0.45)
+          : Colors.grey.shade400;
     } else if (isCheckedIn) {
       // 已打卡：绿色正圆形背景
-      backgroundColor = AppColors.checkedIn;
+      backgroundColor = checkedColor;
       textColor = Colors.white;
     } else if (isInRange) {
-      // 过去的未打卡日期：浅红色背景
-      backgroundColor = AppColors.notCheckedInBackground;
-      textColor = AppColors.notCheckedIn;
+      // 过去的未打卡日期：深色模式下只保留低亮度底色和描边，避免浅粉色块刺眼。
+      backgroundColor = missedBackground;
+      textColor = missedText;
+      borderColor = isDark
+          ? AppColors.notCheckedInDarkOutline.withValues(alpha: 0.85)
+          : null;
     }
 
-    if (isSelected) {
-      backgroundColor = isCheckedIn
-          ? AppDates.getWeekNumber(day) == 1
-              ? AppColors.checkedIn.withValues(alpha: 0.9)
-              : AppColors.checkedIn.withValues(alpha: 0.8)
-          : AppColors.primary.withAlpha(51);
-      textColor = isCheckedIn ? Colors.white : AppColors.primary;
-      borderColor = AppColors.primary;
+    if (isSelected && !isDisabled && !isFuture) {
+      borderColor = colorScheme.primary;
+      borderWidth = 2;
+      if (isCheckedIn) {
+        backgroundColor = checkedColor;
+        textColor = Colors.white;
+      } else if (isInRange) {
+        backgroundColor = missedSelectedBackground;
+        textColor = colorScheme.primary;
+      } else {
+        backgroundColor = colorScheme.primary.withValues(alpha: 0.16);
+        textColor = colorScheme.primary;
+      }
     }
 
     if (isToday && !isCheckedIn && !isFuture) {
-      borderColor = AppColors.primary;
+      borderColor = colorScheme.primary;
+      borderWidth = 2;
     }
 
     // 构建日期文本
@@ -345,47 +421,47 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     // 已打卡使用正圆形，未打卡使用圆角矩形
-    if (isCheckedIn) {
-      Widget cell = Container(
-        margin: const EdgeInsets.all(2),
-        width: 36,
-        height: 36,
+    final cellSize = isCheckedIn ? 38.0 : 42.0;
+
+    return Center(
+      child: Container(
+        width: cellSize,
+        height: cellSize,
         decoration: BoxDecoration(
           color: backgroundColor,
-          shape: BoxShape.circle,
+          shape: isCheckedIn ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: isCheckedIn
+              ? null
+              : BorderRadius.circular(isDark ? 14 : 8),
+          border: borderColor != null
+              ? Border.all(color: borderColor, width: borderWidth)
+              : null,
+          boxShadow: isCheckedIn && isDark
+              ? [
+                  BoxShadow(
+                    color: checkedColor.withValues(alpha: 0.28),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
         ),
         child: Center(child: dateContent),
-      );
-
-      return cell;
-    }
-
-    Widget cell = Container(
-      margin: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        border: borderColor != null
-            ? Border.all(color: borderColor, width: isToday ? 2 : 1)
-            : null,
       ),
-      child: Center(child: dateContent),
     );
-
-    return cell;
   }
 
   /// 处理日期点击 - 弹窗确认后打卡
   Future<void> _handleCheckinForDate(DateTime date) async {
     final provider = Provider.of<CheckinProvider>(context, listen: false);
-    
+
     // 不允许对未来日期打卡
     if (_isFutureDay(date)) {
       return;
     }
-    
+
     // 检查日期是否在允许范围内
-    if (date.isBefore(AppDates.checkinStartDate) || 
+    if (date.isBefore(AppDates.checkinStartDate) ||
         date.isAfter(AppDates.checkinEndDate)) {
       return;
     }
@@ -394,10 +470,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final isToday = _isToday(date);
 
     // 弹窗确认
-    final confirmed = await _showConfirmDialog(context, date, wasCheckedIn, isToday);
+    final confirmed = await _showConfirmDialog(
+      context,
+      date,
+      wasCheckedIn,
+      isToday,
+    );
     if (confirmed == true && mounted) {
       await provider.toggleCheckin(date);
-      
+
       // 根据操作前的状态显示提示
       if (mounted) {
         if (wasCheckedIn) {
@@ -422,24 +503,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// 弹窗确认
-  Future<bool?> _showConfirmDialog(BuildContext context, DateTime date, bool wasCheckedIn, bool isToday) {
+  Future<bool?> _showConfirmDialog(
+    BuildContext context,
+    DateTime date,
+    bool wasCheckedIn,
+    bool isToday,
+  ) {
     final dateStr = DateFormat('yyyy年MM月dd日').format(date);
     String title;
     String content;
-    
+
     if (isToday) {
       // 当天打卡提醒
       title = wasCheckedIn ? '取消打卡' : '打卡';
-      content = wasCheckedIn 
-          ? '确定要取消今天的打卡吗？'
-          : '确认要打卡吗？';
+      content = wasCheckedIn ? '确定要取消今天的打卡吗？' : '确认要打卡吗？';
     } else {
       title = wasCheckedIn ? '取消打卡' : '补打卡';
-      content = wasCheckedIn 
-          ? '确定要取消 $dateStr 的打卡吗？'
-          : '确定要为 $dateStr 补打卡吗？';
+      content = wasCheckedIn ? '确定要取消 $dateStr 的打卡吗？' : '确定要为 $dateStr 补打卡吗？';
     }
-    
+
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -472,6 +554,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSettingsMenu() {
     return Consumer<SettingsProvider>(
       builder: (context, settings, _) {
+        final iconColor = Theme.of(context).colorScheme.primary;
+
         return PopupMenuButton<String>(
           icon: const Icon(Icons.settings),
           tooltip: AppStrings.settings,
@@ -493,7 +577,7 @@ class _HomeScreenState extends State<HomeScreen> {
               value: 'history',
               child: Row(
                 children: [
-                  Icon(Icons.history, size: 20, color: AppColors.primary),
+                  Icon(Icons.history, size: 20, color: iconColor),
                   const SizedBox(width: 12),
                   const Text(AppStrings.history),
                 ],
@@ -503,7 +587,7 @@ class _HomeScreenState extends State<HomeScreen> {
               value: 'dates',
               child: Row(
                 children: [
-                  Icon(Icons.date_range, size: 20, color: AppColors.primary),
+                  Icon(Icons.date_range, size: 20, color: iconColor),
                   const SizedBox(width: 12),
                   const Text(AppStrings.modifyDates),
                 ],
@@ -514,7 +598,7 @@ class _HomeScreenState extends State<HomeScreen> {
               checked: settings.isDarkMode,
               child: Row(
                 children: [
-                  Icon(Icons.dark_mode, size: 20, color: AppColors.primary),
+                  Icon(Icons.dark_mode, size: 20, color: iconColor),
                   const SizedBox(width: 12),
                   const Text(AppStrings.darkMode),
                 ],
@@ -524,7 +608,7 @@ class _HomeScreenState extends State<HomeScreen> {
               value: 'export',
               child: Row(
                 children: [
-                  Icon(Icons.upload_file, size: 20, color: AppColors.primary),
+                  Icon(Icons.upload_file, size: 20, color: iconColor),
                   const SizedBox(width: 12),
                   const Text(AppStrings.exportData),
                 ],
@@ -534,7 +618,7 @@ class _HomeScreenState extends State<HomeScreen> {
               value: 'import',
               child: Row(
                 children: [
-                  Icon(Icons.download, size: 20, color: AppColors.primary),
+                  Icon(Icons.download, size: 20, color: iconColor),
                   const SizedBox(width: 12),
                   const Text(AppStrings.importData),
                 ],
@@ -627,14 +711,25 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final importedCount = await _backupService.importFromDirectory(selectedDirectory);
+      final importedCount = await _backupService.importFromDirectory(
+        selectedDirectory,
+      );
       if (!mounted) {
         return;
       }
 
-      final checkinProvider = Provider.of<CheckinProvider>(context, listen: false);
-      final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
-      final countdownProvider = Provider.of<CountdownProvider>(context, listen: false);
+      final checkinProvider = Provider.of<CheckinProvider>(
+        context,
+        listen: false,
+      );
+      final settingsProvider = Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      );
+      final countdownProvider = Provider.of<CountdownProvider>(
+        context,
+        listen: false,
+      );
 
       await settingsProvider.reload();
       await checkinProvider.refresh();
@@ -667,9 +762,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            '导入成功：已覆盖 $importedCount 条记录\n目录：$selectedDirectory',
-          ),
+          content: Text('导入成功：已覆盖 $importedCount 条记录\n目录：$selectedDirectory'),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
         ),
@@ -701,18 +794,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 
   /// 显示日期设置对话框
   Future<void> _showDateSettings(BuildContext parentContext) async {
     // 在异步操作前获取 provider 引用
-    final checkinProvider = Provider.of<CheckinProvider>(parentContext, listen: false);
-    final countdownProvider = Provider.of<CountdownProvider>(parentContext, listen: false);
+    final checkinProvider = Provider.of<CheckinProvider>(
+      parentContext,
+      listen: false,
+    );
+    final countdownProvider = Provider.of<CountdownProvider>(
+      parentContext,
+      listen: false,
+    );
     final messenger = ScaffoldMessenger.of(parentContext);
 
     final result = await showDialog<bool>(
