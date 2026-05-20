@@ -33,7 +33,16 @@ class AppStrings {
   static const String currentPeriodDays = '当前周期打卡天数';
   static const String trendDetails = '周期明细';
   static const String noTrendData = '暂无趋势数据';
+  static const String currentVersion = '当前版本';
 
   // 星期
-  static const List<String> weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  static const List<String> weekDays = [
+    '周一',
+    '周二',
+    '周三',
+    '周四',
+    '周五',
+    '周六',
+    '周日',
+  ];
 }

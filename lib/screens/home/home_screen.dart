@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_dates.dart';
@@ -31,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentMonth = DateTime.now().month;
   int _currentYear = DateTime.now().year;
   bool _isImportExporting = false;
+  String _appVersionLabel = '--';
   final BackupService _backupService = BackupService();
 
   @override
@@ -40,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _selectedDay = DateTime.now();
     _currentMonth = DateTime.now().month;
     _currentYear = DateTime.now().year;
+    _loadAppVersion();
 
     // 加载当月打卡数据
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -73,6 +76,29 @@ class _HomeScreenState extends State<HomeScreen> {
       return AppDates.checkinEndDate;
     }
     return today;
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        final buildNumber = packageInfo.buildNumber.trim();
+        _appVersionLabel = buildNumber.isEmpty
+            ? packageInfo.version
+            : '${packageInfo.version}+$buildNumber';
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _appVersionLabel = '--';
+      });
+    }
   }
 
   @override
@@ -707,6 +733,27 @@ class _HomeScreenState extends State<HomeScreen> {
                   Icon(Icons.download, size: 20, color: iconColor),
                   const SizedBox(width: 12),
                   const Text(AppStrings.importData),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              enabled: false,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '${AppStrings.currentVersion} $_appVersionLabel',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

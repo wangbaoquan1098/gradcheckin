@@ -2,7 +2,7 @@ name: gradcheckin
 description: "考研倒计时与自习室打卡应用"
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.11.1
@@ -26,6 +26,7 @@ dependencies:
   path_provider: ^2.1.5
   file_picker: ^10.3.2
   permission_handler: ^12.0.1
+  package_info_plus: ^8.3.0
   
   # 日历组件
   table_calendar: ^3.1.2
