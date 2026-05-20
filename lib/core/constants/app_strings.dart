@@ -7,6 +7,7 @@ class AppStrings {
   static const String checkinSuccess = '打卡成功！';
   static const String checkinCancelled = '已取消打卡';
   static const String history = '历史记录';
+  static const String trend = '打卡趋势';
   static const String noRecord = '暂无打卡记录';
   static const String todayCheckin = '今日打卡';
   static const String invalidDate = '请选择有效日期（2026年3月1日至今）';
@@ -26,6 +27,12 @@ class AppStrings {
   static const String importWarning = '导入会覆盖当前全部打卡数据，是否继续？';
   static const String weekPrefix = '第';
   static const String weekSuffix = '周';
+  static const String weeklyTrend = '按周';
+  static const String monthlyTrend = '按月';
+  static const String currentPeriodRate = '当前周期打卡率';
+  static const String currentPeriodDays = '当前周期打卡天数';
+  static const String trendDetails = '周期明细';
+  static const String noTrendData = '暂无趋势数据';
 
   // 星期
   static const List<String> weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];

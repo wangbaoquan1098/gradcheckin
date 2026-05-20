@@ -12,6 +12,7 @@ import '../../core/services/backup_service.dart';
 import '../../providers/checkin_provider.dart';
 import '../../providers/countdown_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../trends/trend_screen.dart';
 import 'widgets/countdown_banner.dart';
 import 'widgets/checkin_history_sheet.dart';
 import 'widgets/date_settings_dialog.dart';
@@ -633,6 +634,10 @@ class _HomeScreenState extends State<HomeScreen> {
           onSelected: (value) {
             if (value == 'history') {
               _showHistory(context);
+            } else if (value == 'trends') {
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const TrendScreen()));
             } else if (value == 'dates') {
               _showDateSettings(context);
             } else if (value == 'export') {
@@ -651,6 +656,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   Icon(Icons.history, size: 20, color: iconColor),
                   const SizedBox(width: 12),
                   const Text(AppStrings.history),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'trends',
+              child: Row(
+                children: [
+                  Icon(Icons.show_chart, size: 20, color: iconColor),
+                  const SizedBox(width: 12),
+                  const Text(AppStrings.trend),
                 ],
               ),
             ),

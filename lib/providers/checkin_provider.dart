@@ -130,7 +130,7 @@ class CheckinProvider extends ChangeNotifier {
     } else {
       totalDays = daysInMonth;
     }
-    
+
     if (totalDays <= 0) return 0;
     
     int checkedDays = 0;
