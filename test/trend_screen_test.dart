@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gradcheckin/screens/trends/trend_screen.dart';
 
 void main() {
-  testWidgets('TrendContent shows weekly and monthly summaries', (
+  testWidgets('TrendContent shows summaries without repeating the page title', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -19,7 +19,7 @@ void main() {
       ),
     );
 
-    expect(find.text('打卡趋势'), findsOneWidget);
+    expect(find.text('打卡趋势'), findsNothing);
     expect(find.text('按周'), findsOneWidget);
     expect(find.text('按月'), findsOneWidget);
     expect(find.text('66.7%'), findsOneWidget);
